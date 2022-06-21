@@ -14,9 +14,10 @@
 #include <std_msgs/UInt8.h>
 #include <std_msgs/UInt16.h>
 #include <std_msgs/UInt8MultiArray.h>
+
 using namespace std;
 uint16_t position = 0;
-uint8_t id;
+//uint8_t id;
 //uint16_t time;
 
 int set_opt(int fd,int nSpeed, int nBits, char nEvent, int nStop)
@@ -117,14 +118,14 @@ uint8_t LobotCheckSum(uint8_t buf[])
 
 void sendCMD(const Servo &frame)
 {
-	int fd,wr_static,i=10;
+	int fd,wr_static,i=5;
 	char *uart3 = "/dev/ttyUSB0";		
 	//char *buffer = "";		
 	//unsigned char buffer[10]={0x55,0x55,0x01,0x07,0x01,0x20,0x03,0xE8,0x03,0xE8};
 	printf("\r\nitop4412 uart3 writetest start\r\n");
 	unsigned char data[10];
 
-	for (int i=0; i=9;i++)
+	for (int i=0; i<10;i++)
 	data[i]=frame.data[i];
 
 	if((fd = open(uart3, O_RDWR|O_NOCTTY|O_NDELAY))<0){
@@ -147,8 +148,9 @@ void sendCMD(const Servo &frame)
 	close(fd);	//释放串口设备资源
 }
 
-void LobotSerialServoMove(const uint8_t &id,const uint16_t &position,const uint16_t &time)
+void LobotSerialServoMove(const uint8_t id,const uint16_t position,const uint16_t time)
 {
+	ROS_INFO("in it ");
   uint16_t pos = position;  
   Servo frame;
   unsigned char  buf[10];
@@ -160,36 +162,44 @@ void LobotSerialServoMove(const uint8_t &id,const uint16_t &position,const uint1
   buf[2] = id;
   buf[3] = 7;
   buf[4] = LOBOT_SERVO_MOVE_TIME_WRITE;
-  buf[5] = GET_LOW_BYTE(position);
-  buf[6] = GET_HIGH_BYTE(position);
+  buf[5] = GET_LOW_BYTE(pos);
+  buf[6] = GET_HIGH_BYTE(pos);
   buf[7] = GET_LOW_BYTE(time);
   buf[8] = GET_HIGH_BYTE(time);
   buf[9] = LobotCheckSum(buf);
-
-  for (int i=0; i=9;i++)
-  frame.data[i]=buf[i];
+  for (int i=0; i<10;i++){frame.data[i]=buf[i];}
   sendCMD(frame);
+  ROS_INFO("send it ");
 }
 
-void servoCB (const uint8_t &msg)
-{
+void servo_1CB (const std_msgs::UInt8& msg)
+{	
+	ROS_INFO("get 1");
+	position = (msg.data/240.0)*1000;
+    //position = 1000;
+    LobotSerialServoMove(1,position,750);
 	
-	position = (msg/270)*1000;
-    position = 1000;
-    LobotSerialServoMove(1,position,1000);
-	cout<<" get it "<<endl;
 }
 
+void servo_2CB (const std_msgs::UInt8& msg)
+{	
+	ROS_INFO("get 2");
+	position = (msg.data/240.0)*1000;
+    //position = 1000;
+    LobotSerialServoMove(2,position,750);
+	
+}
 
 int main(int argc, char **argv)
-{
-	uint8_t x=30;
-    //  ros::init(argc, argv, "servo_cmd");               
-    //  ros::NodeHandle nh;                                          
-    // ros::Subscriber servo_sub = nh.subscribe<std_msgs::UInt8>("/servo_cmd", 5, &servoCB);   
-	servoCB(x);
-    //  ros::spin();
-
+{	
+    ros::init(argc, argv, "servo_cmd");               
+    ros::NodeHandle nh;                                          
+    ros::Subscriber servo_sub_1 = nh.subscribe("/servo_cmd_1",1, servo_1CB);  
+	ros::Subscriber servo_sub_2 = nh.subscribe("/servo_cmd_2",1, servo_2CB);   
+	
+	//cd servoCB(x);
+    ros::spin();
+ROS_INFO("get ");
 
 
 }
